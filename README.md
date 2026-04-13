@@ -1,316 +1,853 @@
-# Open Agent Ecosystem（中文草案）
+# AgentWorld
 
-> 基于 `会议记录.txt` 整理的中文 README 初稿。
-> 当前版本用于快速对齐项目愿景、分层架构、子项目关系与推进路线，不代表代码现状。
+> 面向强 Agent 的通用多智能体编排框架设计稿。
+> 当前阶段先定义抽象、边界和运行模型，不写实现细节，不做功能堆砌。
 
-## 1. 项目定位
+## 1. 这是什么
 
-这是一个面向 OpenCloud 时代的开源 Agent 生态项目。
+AgentWorld 不是上一代那种“对 LLM SDK 做 Prompt + Tool 封装”的 Agent Framework。
 
-它的目标不是只做一个单点产品，而是搭建一个能够持续承载不同 Agent 方向项目的公共底座，包括：
+它要解决的是另一类问题：
 
-- 一个极简、通用、可扩展的多智能体系统（MAS）框架
-- 一个可落地的 Auto Research 通用工作流框架
-- 一个可复用、可评测、可流通的 Skill 体系
-- 围绕 Agentic RL、可靠性验证等方向的专项研究模块
-- 一套能够连接论文、开源项目、评测体系和实际应用的协作生态
+- 底层执行单元不再是单个 LLM API 调用
+- 底层执行单元是 `Claude Code`、`Codex`、`OpenClaw` 这类已经具备工具使用、会话、文件系统操作、长链路执行能力的强 Agent
+- 框架本身不负责替这些 Agent 思考，而是负责：
+  - 统一控制它们
+  - 调度它们
+  - 组织它们之间的协作
+  - 维护多智能体共享状态
+  - 让它们可以稳定地运行在一个图结构工作流里
 
-## 2. 项目愿景
+一句话说，这个框架是一个“强 Agent 的操作系统层 / 编排层”，而不是“LLM 调用封装层”。
 
-我们希望把这个项目做成一个“大生态 + 多项目 + 公共底座”的开源体系：
+## 2. 与上一代 Agent Framework 的根本区别
 
-1. 底层是一套通用 Agent 框架，解决长链路、长上下文、多角色协作的问题。
-2. 中层是工作流与 Skill 层，把 Auto Research、技能复用、评测闭环真正接起来。
-3. 上层是多个有明确目标的项目，包括 Auto Research、Benchmark、Skill 平台、Agentic RL、Reliable Agent 等。
-4. 最外层是论文、Demo、合作、落地应用与社区影响力。
+### 上一代框架的核心对象
 
-换句话说，这不是“一个仓库”，而是一套能不断长出新项目的开源母体。
+上一代框架的核心对象通常是：
 
-## 3. 为什么要做
+- LLM
+- Prompt
+- Tool
+- Memory
+- Chain / AgentExecutor
 
-当前 Agent 相关工作通常存在几个断层：
+它们默认假设：
 
-- 框架很多，但缺少一个足够简洁、通用、能承载后续项目的公共抽象
-- Workflow、Skill、Benchmark、应用之间往往是分离的，难以形成正反馈
-- 很多项目只能展示单次效果，难以沉淀为可复用资产
-- 学术成果、开源代码和真实价值之间缺少统一的评价与连接方式
+- 一个 Agent 的主体就是一个模型调用循环
+- Tool Call 是模型输出的一部分
+- 会话状态主要由框架自己维护
 
-这个项目希望把这些割裂的部分重新组织起来，形成一个持续演化的 Agent 开源生态。
+### 这一代框架的核心对象
 
-## 4. 总体分层
+这一代框架的核心对象应该变成：
 
-下面这套分层是根据会议纪要做的工程化归纳，用来指导仓库与项目组织。
+- `Controller`：如何具体控制某个强 Agent
+- `Operator`：对上层暴露统一行为的执行单元
+- `A2A Protocol`：Agent 与 Agent 之间如何交换消息、工具结果、产物与控制信号
+- `Graph`：多智能体协作图
+- `Runtime`：调度、状态合并、checkpoint、resume、interrupt、trace
 
-| 层级 | 名称 | 职责 |
-| --- | --- | --- |
-| L4 | 生态与应用层 | 论文、Demo、合作项目、垂直应用、对外展示 |
-| L3 | 专项能力层 | Skill 平台、Benchmark、Agentic RL、Reliable Agent 等专项方向 |
-| L2 | 通用工作流层 | Auto Research 框架、Skill 编排、任务回流、评测闭环 |
-| L1 | 通用 MAS 内核 | Long-Graph / Long-Chain、多 Agent 协作、状态管理、工具调度 |
-| L0 | 基础设施层 | 模型服务、数据源、执行环境、日志与观测体系 |
+也就是说，我们不再把“模型调用”当作最小单位，而是把“可持续运行的 Agent Operator”当作最小单位。
 
-## 5. Mermaid 框架图
+## 3. 设计目标
 
-### 5.1 整体分层架构图
+这个仓库的目标很明确：
+
+1. 抽象出一套统一的强 Agent Operator 接口
+2. 让不同 Agent 的控制细节收敛到各自的 Controller 中
+3. 提供类似 LangGraph 的图编排能力，但图上的节点是强 Agent Operator
+4. 提供一套内部 A2A 协议，让 Agent 间通信不再是随意拼接文本
+5. 让运行具备可恢复、可追踪、可中断、可重放的能力
+
+## 4. 非目标
+
+当前阶段明确不做这些事情：
+
+- 不重新实现 Claude Code / Codex / OpenClaw 内部的智能能力
+- 不把所有 Agent 统一成同一种 Prompt 模板
+- 不先做一整套平台产品界面
+- 不一开始就支持所有 Provider 和所有运行环境
+- 不把框架设计成一个巨大的全能系统
+
+第一阶段只做最关键的最小闭环：`统一控制 -> 图调度 -> 状态管理 -> 多 Agent 协作 -> 可恢复运行`。
+
+## 5. 设计原则
+
+### 5.1 强 Agent 优先
+
+框架默认“底层已经是强 Agent”，而不是“底层只是一个裸模型接口”。
+
+### 5.2 具体控制下沉到 Controller
+
+不同 Agent 的差异极大，例如：
+
+- 会话创建方式不同
+- 恢复会话的方式不同
+- 工具权限配置不同
+- 输出流格式不同
+- 文件系统和工作区约束不同
+
+这些差异不应该泄漏到 Graph 层，而应该由 Controller 兜住。
+
+### 5.3 上层接口统一
+
+对 Graph / Runtime 来说，不应该关心底层是 Claude Code 还是 Codex。  
+它只关心：
+
+- 这个节点调用哪个 Operator
+- Operator 需要什么输入
+- 返回什么标准化结果
+- 接下来怎么更新状态和路由
+
+### 5.4 显式状态，显式消息
+
+共享状态和 Agent 间消息是两种不同的东西，必须分开设计：
+
+- `State`：图级别的权威状态
+- `A2A Message`：Agent 之间的通信载体
+
+不能只靠自然语言拼接上下文，也不能把所有信息都塞进全局 state。
+
+### 5.5 Builder / Runtime 分离
+
+借鉴 LangGraph 的优点：
+
+- 构图阶段只描述结构
+- 运行阶段由编译后的 Runtime 执行
+
+这样才能支持：
+
+- 校验
+- 可视化
+- checkpoint
+- resume
+- interrupt
+- tracing
+
+## 6. 总体架构
 
 ```mermaid
 flowchart TB
-    subgraph L0["L0 基础设施层"]
-        M["模型与推理服务"]
-        D["数据 / 文献 / 知识源"]
-        R["执行环境 / 日志 / 观测"]
+    USER["User / App"]
+    BUILDER["Graph Builder"]
+    COMPILED["Compiled Graph"]
+    RUNTIME["Runtime / Scheduler"]
+
+    subgraph CORE["AgentWorld Core"]
+        GRAPH["Graph Layer"]
+        OP["Operator Layer"]
+        A2A["A2A Protocol"]
+        STORE["Checkpoint / Trace / Artifact Store"]
     end
 
-    subgraph L1["L1 通用 MAS 内核"]
-        G["Long-Graph / Long-Chain 调度"]
-        A["Sub-agent 协作"]
-        S["状态 / 记忆 / 上下文管理"]
-        T["工具调用与执行控制"]
+    subgraph CTRL["Controller Layer"]
+        C1["ClaudeCodeController"]
+        C2["CodexController"]
+        C3["OpenClawController"]
     end
 
-    subgraph L2["L2 通用工作流层"]
-        AR["通用 Auto Research 框架"]
-        SK["Skill 组织与复用"]
-        EV["评测反馈与任务回流"]
+    subgraph AGENTS["Strong Agents"]
+        A1["Claude Code"]
+        A2["Codex"]
+        A3["OpenClaw"]
     end
 
-    subgraph L3["L3 专项能力层"]
-        SP["Skill 平台"]
-        BM["Skill Benchmark / Leaderboard"]
-        RL["Agentic RL / OpenCloud RL"]
-        RA["Reliable Agent / Formal Verification"]
-    end
+    USER --> BUILDER --> COMPILED --> RUNTIME
+    RUNTIME --> GRAPH
+    GRAPH --> OP
+    OP --> A2A
+    RUNTIME --> STORE
 
-    subgraph L4["L4 生态与应用层"]
-        APP1["垂直 Auto Research 应用"]
-        APP2["Robotics / AI Scientist / 企业工作流"]
-        APP3["论文 / Demo / 对外合作"]
-    end
+    OP --> C1
+    OP --> C2
+    OP --> C3
 
-    M --> G
-    D --> S
-    R --> T
-
-    G --> AR
-    A --> AR
-    S --> SK
-    T --> EV
-
-    AR --> SP
-    SK --> SP
-    EV --> BM
-    AR --> RL
-    G --> RA
-
-    SP --> APP1
-    BM --> APP3
-    RL --> APP2
-    RA --> APP2
+    C1 --> A1
+    C2 --> A2
+    C3 --> A3
 ```
 
-### 5.2 子项目关系图
+## 7. 五层核心抽象
 
-```mermaid
-flowchart LR
-    CORE["通用 MAS 核心仓库"]
-    AUTO["通用 Auto Research"]
-    VERTICAL["垂直化研究工作流"]
-    SKILL["Skill 集合"]
-    PLATFORM["Skill 平台"]
-    BENCH["Benchmark / Leaderboard"]
-    RL["Agentic RL"]
-    RELIABLE["Reliable Agent"]
-    DEMO["论文 / Demo / Showcase"]
+### 7.1 Controller Layer
 
-    CORE --> AUTO
-    CORE --> RL
-    CORE --> RELIABLE
+这一层只解决一件事：`怎么真实地驱动某个具体 Agent`。
 
-    AUTO --> VERTICAL
-    AUTO --> SKILL
-    SKILL --> PLATFORM
-    PLATFORM --> BENCH
-    BENCH --> AUTO
+它是 Provider-specific 的。
 
-    AUTO --> DEMO
-    RL --> DEMO
-    RELIABLE --> DEMO
-    PLATFORM --> DEMO
+例如：
+
+- `ClaudeCodeController` 需要知道如何创建 session、如何 resume、如何设置工具权限、如何解析 stream-json
+- `CodexController` 需要知道如何发起任务、如何接收事件、如何处理工作区变更
+- `OpenClawController` 需要知道它自己的 API / CLI / runtime 约束
+
+这一层只向上暴露统一事件，不向上暴露底层乱七八糟的调用细节。
+
+### Controller 必须解决的事情
+
+- 会话创建与恢复
+- 运行参数组装
+- 工作区绑定
+- 输出流解析
+- 工具权限映射
+- 超时 / 失败 / 中断处理
+- 原始 trace 保留
+
+### Controller 不应该做的事情
+
+- 不负责图路由
+- 不负责多 Agent 协作策略
+- 不负责共享状态合并
+- 不负责业务工作流编排
+
+### 7.2 Operator Layer
+
+这一层是整个框架的执行抽象中心。
+
+一个 `Operator` 的语义不是“一个模型”，而是：
+
+> 一个可被 Graph 调度、可执行任务、可产生标准化输出、可被恢复的强 Agent 执行单元。
+
+Graph 层只认识 Operator，不认识具体 Controller。
+
+### Operator 的职责
+
+- 接收标准化输入
+- 组织 prompt / context / inbox / artifact / working directory
+- 调用底层 Controller
+- 将底层事件归一化
+- 产出标准化结果
+
+### Operator 的最小接口
+
+```python
+class Operator(Protocol):
+    def invoke(self, request: "OperatorRequest", runtime: "RuntimeContext") -> "OperatorResult":
+        ...
+
+    def resume(self, request: "OperatorResumeRequest", runtime: "RuntimeContext") -> "OperatorResult":
+        ...
 ```
 
-### 5.3 推进路线图
+### OperatorRequest 建议字段
 
-```mermaid
-flowchart LR
-    P0["阶段 0：愿景对齐<br/>明确分层、角色、对外叙事"]
-    P1["阶段 1：仓库落地<br/>README、架构图、目录骨架、最小 Demo"]
-    P2["阶段 2：内核原型<br/>通用 MAS 调度、Sub-agent、状态管理"]
-    P3["阶段 3：工作流层<br/>Auto Research 通用化、Skill 接口"]
-    P4["阶段 4：专项能力<br/>Benchmark、Skill 平台、RL、Reliable Agent"]
-    P5["阶段 5：生态扩张<br/>论文、合作、展示、垂直应用"]
-
-    P0 --> P1 --> P2 --> P3 --> P4 --> P5
-```
-
-## 6. 核心模块说明
-
-### 6.1 通用 MAS 内核
-
-这是整个生态的最底层抽象，目标不是做成“功能最多”的框架，而是做成“足够简洁、结构合理、便于衍生”的核心骨架。
-
-重点能力包括：
-
-- 多 Agent 任务拆解与协作
-- Long-Graph / Long-Chain 式任务编排
-- 上下文、状态、记忆管理
-- 工具调用、执行控制与结果回流
-- 对上层工作流与专项项目提供统一接口
-
-### 6.2 通用 Auto Research 框架
-
-这是从通用内核之上长出来的第一类核心应用框架，用于支撑自动化研究任务，包括但不限于：
-
-- 文献搜集
-- 问题分解
-- 假设生成
-- 实验与评估
-- 结果写作与复盘
-
-这个层级应该尽量保持“通用”，而不是过早写死为某个特定学科或特定工作流。
-
-### 6.3 垂直化研究工作流
-
-当通用 Auto Research 框架稳定后，可以进一步向下沉淀为垂直版本，例如：
-
-- 某个特定学科的自动研究工作流
-- 某类论文生成与迭代流程
-- 某种高度结构化的实验任务
-
-这一层强调“高完成度”和“端到端效果”，是后续论文与展示的重要来源。
-
-### 6.4 Skill 平台与 Skill 体系
-
-Skill 是生态中最重要的可复用资产之一。
-
-这一块的目标不是单纯存一堆 Prompt，而是形成一个闭环：
-
-- Skill 的定义与封装
-- Skill 的注册与管理
-- Skill 的调用与组合
-- Skill 的评测与排行榜
-- Skill 的流通、共享和贡献机制
-
-Auto Research 与 Skill 体系之间需要打通，避免技能资产与工作流资产分裂。
-
-### 6.5 Benchmark / Leaderboard
-
-Benchmark 负责提供一个相对统一的黄金标准，用于回答两个问题：
-
-- 某个 Skill 或工作流到底有没有价值
-- 不同 Skill / Agent 方案之间如何进行可比较的评估
-
-它既是研究评价体系的一部分，也是平台生态的核心支点。
-
-### 6.6 Agentic RL 与 Reliable Agent
-
-这两个方向适合作为专项能力模块独立推进，再接回主生态。
-
-- Agentic RL：负责把训练、反馈、策略优化等能力接进 Agent 体系
-- Reliable Agent：负责形式化验证、可靠性增强、系统级稳健性
-
-这类模块不必从第一天就高度耦合进主框架，但需要在接口层预留接入位。
-
-## 7. 建议的协作分工
-
-从会议纪要看，比较合理的组织方式不是“所有人做同一个仓库”，而是“统一叙事下的分模块协作”。
-
-| 方向 | 建议职责 |
+| 字段 | 说明 |
 | --- | --- |
-| 核心架构负责人 | 负责通用 MAS 内核、架构边界、接口定义 |
-| 工作流负责人 | 负责 Auto Research 通用层与垂直流程沉淀 |
-| Skill 负责人 | 负责 Skill 规范、Skill 集合、Skill 平台对接 |
-| Benchmark 负责人 | 负责评测标准、排行榜、指标设计 |
-| 专项研究负责人 | 负责 Agentic RL、Reliable Agent 等独立方向 |
-| 生态协同负责人 | 负责合作方、论文、讲稿、对外展示与社区联动 |
+| `operator_id` | 当前 operator 标识 |
+| `role` | 角色，如 planner / coder / reviewer |
+| `objective` | 本次节点目标 |
+| `state_view` | 当前节点可见的图状态切片 |
+| `inbox` | 收到的 A2A 消息 |
+| `artifacts` | 当前可见产物 |
+| `working_dir` | 工作目录 |
+| `session_policy` | 是否创建新会话、复用会话、强制恢复 |
+| `tool_policy` | 允许哪些工具、权限级别 |
+| `timeout_s` | 超时时间 |
+| `metadata` | 其他运行元数据 |
 
-协作原则建议如下：
+### OperatorResult 建议字段
 
-- 底座仓库尽量稳定、简洁，少做强耦合
-- 子项目可以独立推进，但要在接口与叙事上归一
-- 各模块都应有明确 owner，避免“中间层没人负责”
-- 先把可展示的版本搭起来，再逐步增强技术深度
+| 字段 | 说明 |
+| --- | --- |
+| `status` | `success / failed / interrupted / timeout` |
+| `session_ref` | 底层 agent session 句柄 |
+| `messages` | 标准化后的 A2A 输出消息 |
+| `state_patch` | 对图状态的增量更新 |
+| `artifacts` | 新产生的文件、patch、报告等 |
+| `handoffs` | 需要发送给其他 operator 的显式交接 |
+| `metrics` | token、耗时、工具调用次数等 |
+| `trace_ref` | 原始日志 / 流输出引用 |
+| `error` | 标准化错误对象 |
 
-## 8. 当前最值得优先落地的事情
+### 7.3 A2A Protocol Layer
 
-结合会议纪要，近期最优先的不是一次性把所有功能做完，而是先把“这是什么”讲清楚，并能拿出一个最小可展示版本。
+这是这个项目和普通工作流框架最容易拉开差距的一层。
 
-优先级建议：
+如果没有 A2A 协议，多智能体协作最后就会退化成：
 
-1. 先搭一个通用 MAS 项目的仓库骨架和 README
-2. 画清楚分层架构图、子项目关系图和路线图
-3. 补一个最小原型，证明多 Agent / Long-Graph 抽象是成立的
-4. 明确 Auto Research 在整个体系中的层级位置
-5. 预留 Skill、Benchmark、RL、Reliable Agent 的接入接口
+- 一堆 prompt 拼接
+- 一堆随意文本传递
+- 无法做消息过滤、路由、审计和重放
 
-## 9. 近期里程碑建议
+所以这里必须定义一个内部协议。
 
-### 第 1 阶段：对齐与展示
+### A2A 协议的目标
 
-- 产出中文 README
-- 产出架构图和对外介绍页
-- 形成统一项目命名和对外说法
-- 搭出最小仓库结构
+- 让 Agent 与 Agent 的交互结构化
+- 让消息和产物可以追踪
+- 让 Graph Runtime 可以理解“这条输出到底是什么”
+- 让后续的 replay / eval / debug 成为可能
 
-### 第 2 阶段：核心原型
+### A2A 协议最小对象
 
-- 实现通用 MAS 最小内核
-- 支持基础任务拆解与 Sub-agent 协作
-- 建立状态、工具、结果回流机制
+#### 1. Message
 
-### 第 3 阶段：工作流接入
+用于表达任务、观察、结论、计划、审查意见等文本或结构化内容。
 
-- 将 Auto Research 抽象为通用工作流
-- 接入 Skill 定义与调用接口
-- 打通基础评测闭环
+#### 2. ToolCall
 
-### 第 4 阶段：专项项目并入
+表达某个 Agent 发起了什么工具调用。
 
-- 接入 Benchmark / Leaderboard
-- 接入 Skill 平台
-- 吸纳 Agentic RL、Reliable Agent 等专项模块
+#### 3. ToolResult
 
-### 第 5 阶段：生态放大
+表达工具调用返回了什么结果。
 
-- 沉淀论文、Demo、报告与公开展示
-- 引入更多合作方与贡献者
-- 形成可持续演化的项目矩阵
+#### 4. Artifact
 
-## 10. 建议的仓库结构
+表达 Agent 产出的文件、补丁、报告、代码片段、图表等。
 
-如果这个仓库准备继续演化，可以先按下面的方式组织：
+#### 5. Handoff
+
+表达“把什么任务交给谁继续处理”。
+
+### A2AEnvelope 建议结构
+
+```python
+class A2AEnvelope(TypedDict):
+    id: str
+    thread_id: str
+    sender: str
+    receiver: str | None
+    kind: str
+    payload: dict
+    artifacts: list[dict]
+    reply_to: str | None
+    created_at: str
+```
+
+### 推荐的消息类型
+
+- `task`
+- `plan`
+- `observation`
+- `decision`
+- `review`
+- `tool_call`
+- `tool_result`
+- `artifact`
+- `handoff`
+- `error`
+- `final`
+
+### 7.4 Graph Layer
+
+Graph 层借鉴 LangGraph 的核心优点，但节点语义要升级。
+
+LangGraph 的关键启发是对的：
+
+- 用显式图描述工作流
+- 节点读写共享状态
+- 支持 `add_node / add_edge / add_conditional_edges / compile`
+- 编译后进入可执行 runtime
+
+但在 AgentWorld 里，节点不能只是普通函数节点，还要支持强 Agent 节点。
+
+### 图中至少需要的节点类型
+
+| 节点类型 | 作用 |
+| --- | --- |
+| `operator node` | 调用强 Agent Operator |
+| `router node` | 根据状态或消息决定下一跳 |
+| `reducer node` | 合并并行结果 |
+| `tool node` | 执行纯工具逻辑 |
+| `human node` | 人工审批 / 干预 |
+
+### Graph 需要支持的边类型
+
+| 边类型 | 作用 |
+| --- | --- |
+| `direct edge` | 固定顺序执行 |
+| `conditional edge` | 根据条件分支 |
+| `fan-out` | 一对多派发 |
+| `join edge` | 等待多个前驱后再执行 |
+| `dynamic send` | 运行时动态投递到某些节点 |
+
+### Graph Builder 建议接口
+
+```python
+graph = AgentGraph(state_schema=State, context_schema=Context)
+graph.add_operator("planner", planner_operator)
+graph.add_operator("coder", coder_operator)
+graph.add_node("plan", operator="planner")
+graph.add_node("implement", operator="coder")
+graph.add_edge("plan", "implement")
+graph.add_conditional_edges("implement", route_fn)
+compiled = graph.compile()
+```
+
+### State 设计原则
+
+图状态必须是强类型、可部分更新、可合并的。
+
+建议借鉴 LangGraph 的 reducer 思路：
+
+- 每个状态字段可以定义合并方式
+- 并行节点写入同一字段时由 reducer 负责收敛
+
+### 常见 reducer
+
+| 字段类型 | 推荐 reducer |
+| --- | --- |
+| `messages: list` | append |
+| `artifacts: list` | append |
+| `metadata: dict` | merge |
+| `final_answer` | last_value |
+| `scores` | max / merge |
+
+### 7.5 Runtime Layer
+
+Runtime 是 Builder 编译后的执行层。
+
+它负责：
+
+- 调度节点
+- 维护执行队列
+- 状态合并
+- checkpoint
+- resume
+- interrupt
+- retry
+- timeout
+- event stream
+- tracing
+
+这一层决定了框架是否真正可用。
+
+## 8. 三个最重要的边界
+
+如果这三个边界不清晰，后面实现一定会变乱。
+
+### 8.1 Controller 与 Operator 的边界
+
+#### Controller 负责
+
+- 具体 Agent 的调用方式
+- session 生命周期
+- 原始事件解析
+- provider 特有参数
+
+#### Operator 负责
+
+- 面向上层的统一请求 / 统一结果
+- prompt 和上下文组织
+- 与 Graph Runtime 对接
+- 将 Controller 事件转成 A2A 和 state_patch
+
+### 8.2 A2A 与 State 的边界
+
+#### A2A 负责
+
+- Agent 之间的通信
+- 任务交接
+- 过程性观察
+- 工具与产物消息
+
+#### State 负责
+
+- 图级别权威状态
+- 可被路由和 reducer 消费的结构化数据
+- checkpoint 时真正持久化的运行语义
+
+经验上：
+
+- “聊天内容”放 A2A
+- “流程进度、结论、聚合结果”放 State
+
+```mermaid
+flowchart LR
+    OA["Operator A"]
+    OB["Operator B"]
+    RT["Runtime"]
+    ST["Shared State"]
+    IN["Inbox / A2A"]
+
+    OA -->|A2A message / handoff / artifact| IN
+    IN --> OB
+
+    OA -->|state_patch| RT
+    RT -->|reducer merge| ST
+    ST -->|state_view| OB
+```
+
+### 8.3 Builder 与 Runtime 的边界
+
+#### Builder 负责
+
+- 声明结构
+- 校验结构
+- 声明节点、边、schema
+
+#### Runtime 负责
+
+- 真正执行
+- 维护 run/thread/session
+- 存 checkpoint
+- 响应 interrupt / resume
+
+## 9. 运行模型
+
+下面是建议采用的统一运行模型。
+
+### 9.1 基本对象
+
+| 对象 | 含义 |
+| --- | --- |
+| `graph_id` | 图定义标识 |
+| `run_id` | 一次完整运行 |
+| `thread_id` | 同一任务线程，用于 resume |
+| `node_run_id` | 某个节点的一次执行 |
+| `operator_session_id` | 底层强 Agent 的原生会话 |
+
+### 9.2 执行过程
+
+```mermaid
+sequenceDiagram
+    participant U as User/App
+    participant G as CompiledGraph
+    participant R as Runtime
+    participant N as OperatorNode
+    participant O as Operator
+    participant C as Controller
+    participant A as Strong Agent
+
+    U->>G: invoke(input, context)
+    G->>R: create run
+    R->>N: schedule node
+    N->>O: build OperatorRequest
+    O->>C: start/resume
+    C->>A: run task
+    A-->>C: stream events
+    C-->>O: normalized events
+    O-->>R: OperatorResult
+    R->>R: merge state_patch
+    R->>R: emit A2A messages / artifacts
+    R->>R: route next nodes
+    R-->>G: final state / stream
+```
+
+### 9.3 一次节点执行的标准生命周期
+
+1. Runtime 根据图结构选出可执行节点
+2. 节点从全局 state 中取自己的可见 state_view
+3. Operator 组装 request
+4. Controller 调用底层强 Agent
+5. 底层事件被标准化为 ControllerEvent
+6. Operator 产出 `messages + state_patch + artifacts + handoffs`
+7. Runtime 用 reducer 合并状态
+8. Router 决定下一跳
+9. Runtime 写入 checkpoint 和 trace
+
+## 10. Controller 设计建议
+
+这部分必须具体，因为它是整个项目最容易“说得抽象、落地失败”的地方。
+
+### 10.1 Controller 最小接口
+
+```python
+class AgentController(Protocol):
+    def start(self, request: "ControllerStartRequest") -> "ControllerRunHandle":
+        ...
+
+    def resume(self, request: "ControllerResumeRequest") -> "ControllerRunHandle":
+        ...
+
+    def stream(self, handle: "ControllerRunHandle") -> Iterator["ControllerEvent"]:
+        ...
+
+    def interrupt(self, session_id: str) -> None:
+        ...
+```
+
+### 10.2 ControllerStartRequest 必要字段
+
+| 字段 | 说明 |
+| --- | --- |
+| `session_id` | 框架侧分配或映射的 session id |
+| `working_dir` | 当前工作目录 |
+| `instruction` | 主指令 |
+| `attachments` | 附加上下文、文件引用 |
+| `tool_policy` | 工具权限策略 |
+| `env` | 环境变量 |
+| `timeout_s` | 超时控制 |
+
+### 10.3 ControllerEvent 必须标准化
+
+不管底层 Agent 输出什么格式，上层最终都应被标准化为少数几种事件：
+
+- `session_started`
+- `message_delta`
+- `message_completed`
+- `tool_call`
+- `tool_result`
+- `artifact_created`
+- `state_hint`
+- `heartbeat`
+- `completed`
+- `failed`
+
+### 10.4 从 AutoR 应该吸收的部分
+
+从 `AutoR` 的 `operator.py` 看，真正有价值的不是它名字叫 operator，而是它已经把“强 Agent 运行时问题”踩了一遍：
+
+- prompt cache
+- attempt 计数
+- session_id 维护
+- resume 与 fallback start
+- 原始日志持久化
+- 输出文件检查
+- repair 流程
+
+这些都应该保留到 AgentWorld 的 Controller / Runtime 设计里。
+
+换句话说，AgentWorld 不能只做一个漂亮抽象，还必须从第一天就考虑：
+
+- session 断了怎么办
+- resume 失败怎么办
+- 日志怎么保存
+- 结果不完整怎么办
+- 一个节点如何重试
+
+## 11. A2A 协议设计建议
+
+### 11.1 为什么必须单独做 A2A
+
+强 Agent 的输出不再只是“回答一段文本”，而是可能同时包含：
+
+- 计划
+- 中间结论
+- 工具调用
+- 文件改动
+- 补丁
+- 需要别人接手的任务
+
+如果没有协议层，这些东西最后都会混成一坨文本，Graph Runtime 无法判断应该怎么消费。
+
+### 11.2 A2A 与 Handoff 的区别
+
+- `message` 是通信
+- `handoff` 是任务转交
+
+一个 reviewer 可以发一条 review message，但不一定 handoff。  
+一个 planner 可以把“实现模块 X” handoff 给 coder。
+
+### 11.3 A2A 最小闭环
+
+第一版不需要定义特别大的协议，只需要保证以下闭环：
+
+1. 一个节点可以给另一个节点发送结构化消息
+2. 一个节点可以附带 artifact
+3. Runtime 可以记录消息链路
+4. 下游节点可以基于 inbox 做决策
+
+## 12. Graph 设计建议
+
+这一层要尽量像 LangGraph 一样简洁，但语义要更适合强 Agent。
+
+### 12.1 推荐保留的 LangGraph 设计
+
+- `state_schema`
+- `context_schema`
+- `add_node`
+- `add_edge`
+- `add_conditional_edges`
+- `compile`
+- reducer
+- checkpoint / interrupt / stream
+
+### 12.2 需要升级的地方
+
+LangGraph 默认节点更像函数式节点。  
+AgentWorld 里节点需要天然支持：
+
+- 长时运行
+- 外部 session
+- artifacts
+- agent-to-agent handoff
+- workspace side effect
+
+所以节点输出不应该只是一份 dict patch，还应允许返回控制命令。
+
+### 12.3 建议定义 GraphCommand
+
+```python
+class GraphCommand(TypedDict, total=False):
+    update: dict
+    goto: str | list[str]
+    send: list[A2AEnvelope]
+    interrupt: bool
+    finish: bool
+```
+
+这相当于借鉴 LangGraph 的 `Command / Send` 思路，但把它改成更适合多 Agent 的语义。
+
+## 13. Runtime 设计建议
+
+### 13.1 必须支持 checkpoint
+
+强 Agent 的运行不是一次 API call，天然会遇到：
+
+- 中断
+- 超时
+- 失败重试
+- 用户介入
+- 长时任务恢复
+
+所以 runtime 必须支持 checkpoint。
+
+### 13.2 必须支持 resume
+
+resume 分两层：
+
+1. `graph-level resume`：恢复图运行
+2. `operator-level resume`：恢复底层 Agent session
+
+这两层不能混为一谈。
+
+### 13.3 必须支持 interrupt
+
+interrupt 用于：
+
+- 人工审批
+- 高风险操作前暂停
+- 节点输出质量不达标时等待外部输入
+
+### 13.4 必须支持 trace
+
+至少需要两层 trace：
+
+- `raw trace`：底层 Agent 原始输出
+- `normalized trace`：框架标准化后的事件流
+
+这样调试时才能回答：
+
+- 是 Controller 解析错了？
+- 还是 Agent 本身没有产出正确结果？
+- 还是 Graph 路由错了？
+
+## 14. V1 最小实现范围
+
+为了避免文档先把系统写炸，第一版建议只做下面这些。
+
+### 14.1 V1 必做
+
+- 一个 `AgentController` 基类
+- `ClaudeCodeController`
+- `CodexController`
+- 一个统一 `Operator`
+- 一套最小 A2A 协议
+- 一个 `AgentGraph`
+- `add_node / add_edge / add_conditional_edges / compile`
+- `invoke / stream / resume`
+- state reducer
+- checkpoint / trace / artifact index
+
+### 14.2 V1 可选
+
+- `OpenClawController`
+- human node
+- retry policy
+- cache policy
+- 多种 stream mode
+
+### 14.3 V1 不做
+
+- 大而全的 Skill 平台
+- 前端 UI
+- 分布式调度
+- token 经济或市场机制
+- 复杂权限系统
+
+## 15. 推荐的第一批内置模式
+
+当内核跑起来后，建议先内置几种简单但有代表性的模式：
+
+### 15.1 Planner -> Coder -> Reviewer
+
+最基础的三段式协作。
+
+### 15.2 Planner -> Parallel Workers -> Reducer
+
+验证 fan-out / join / reducer 是否成立。
+
+### 15.3 Researcher -> Critic -> Writer
+
+验证 A2A 消息传递和 artifact 交接是否成立。
+
+## 16. 建议的仓库结构
 
 ```text
 .
 ├── README.md
 ├── docs/
-│   ├── vision.md
 │   ├── architecture.md
-│   └── diagrams/
-├── core/
-│   ├── orchestration/
-│   ├── memory/
-│   ├── tools/
-│   └── runtime/
-├── workflows/
-│   └── auto-research/
-├── skills/
-├── benchmark/
-├── projects/
-│   ├── agentic-rl/
-│   └── reliable-agent/
-└── demos/
+│   ├── protocol_a2a.md
+│   ├── controller_contract.md
+│   └── graph_runtime.md
+├── src/
+│   └── agentworld/
+│       ├── controller/
+│       │   ├── base.py
+│       │   ├── claude_code.py
+│       │   ├── codex.py
+│       │   └── openclaw.py
+│       ├── operator/
+│       │   ├── base.py
+│       │   ├── models.py
+│       │   └── default.py
+│       ├── protocol/
+│       │   ├── a2a.py
+│       │   └── artifacts.py
+│       ├── graph/
+│       │   ├── builder.py
+│       │   ├── compiled.py
+│       │   ├── node.py
+│       │   ├── edge.py
+│       │   └── reducers.py
+│       ├── runtime/
+│       │   ├── scheduler.py
+│       │   ├── executor.py
+│       │   ├── checkpoint.py
+│       │   ├── events.py
+│       │   └── tracing.py
+│       └── storage/
+│           ├── artifacts.py
+│           └── sessions.py
+└── examples/
+    ├── planner_coder_reviewer.py
+    └── parallel_workers.py
 ```
 
-## 11. 一句话总结
+## 17. 当前阶段最应该先写什么
 
-这个项目的核心不是“再做一个 Agent 框架”，而是搭一个能持续生长出框架、工作流、技能平台、评测体系和应用项目的开源 Agent 生态。
+当前阶段不是先去做很多模式，而是先把下面 5 个文件定义好：
+
+1. `controller/base.py`
+2. `operator/models.py`
+3. `protocol/a2a.py`
+4. `graph/builder.py`
+5. `runtime/executor.py`
+
+因为这 5 个文件基本决定了后面的架构是否稳定。
+
+## 18. 设计参考
+
+这个设计明确参考了两类已有工作，但不会直接照搬。
+
+### 来自 AutoR 的启发
+
+- operator 不是空名词，要落到真实运行控制
+- session / attempt / resume / fallback / logs / repair 必须是第一等公民
+
+### 来自 LangGraph 的启发
+
+- 图构建与运行时分离
+- 显式 state schema
+- reducer
+- conditional edges
+- compile 后执行
+- checkpoint / interrupt / stream
+
+## 19. 一句话总结
+
+AgentWorld 要做的不是“封装另一个 LLM Agent”，而是定义一套适用于 `Claude Code / Codex / OpenClaw` 这类强 Agent 的统一控制接口、A2A 协议、图编排模型和可恢复运行时，把多智能体系统真正做成可构建、可调度、可追踪的基础设施。
