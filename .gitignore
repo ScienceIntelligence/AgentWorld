@@ -208,3 +208,18 @@ __marimo__/
 
 # Local Codex marker
 .codex
+
+# Local project notes, scratch files, and private working material
+meeting-notes.private.txt
+notes/
+meeting-notes/
+dev-notes/
+worklog/
+scratch/
+artifacts/
+outputs/
+*.notes.md
+*.private.md
+*.private.txt
+*.draft.md
+*.scratch
