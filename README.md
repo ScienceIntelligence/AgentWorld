@@ -1,41 +1,57 @@
 # AgentWorld
 
+[![Website](https://img.shields.io/badge/Website-AgentWorld-0f8b7b)](https://black-yt.github.io/AgentWorld/)
 [![CI](https://github.com/black-yt/AgentWorld/actions/workflows/ci.yml/badge.svg)](https://github.com/black-yt/AgentWorld/actions/workflows/ci.yml)
-![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-0f8b7b)
-![Status](https://img.shields.io/badge/status-early%20stage-e45f3c)
+[![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-1f6feb)](https://www.python.org/)
+[![Stage](https://img.shields.io/badge/Stage-Early%20Runtime-e45f3c)](https://github.com/black-yt/AgentWorld)
 
-AgentWorld is a graph runtime for orchestrating strong agents such as Claude Code, Codex, and future operator-style systems.
+**Graph-native orchestration for strong agents.**  
+[Quick Start](#-quick-start) | [Why AgentWorld](#-why-agentworld) | [Architecture](#-architecture) | [Examples](#-examples) | [Roadmap](#-roadmap) | [Design Doc](docs/architecture.md)
 
-It separates provider-specific control from graph orchestration, shared state, agent-to-agent messaging, and recoverable execution. The goal is not to wrap another LLM SDK. The goal is to treat strong agents as the execution primitive and make multi-agent systems programmable infrastructure.
+<p>
+  <img src="docs/assets/agentworld-hero.jpg" alt="AgentWorld hero image" />
+</p>
 
-![AgentWorld](docs/assets/agentworld-hero.jpg)
+AgentWorld is a runtime for coordinating strong agents such as Claude Code, Codex, and future operator-style systems inside one programmable graph.
 
-## Why AgentWorld
+Instead of wrapping another LLM SDK, AgentWorld separates provider control, operator execution, agent-to-agent messaging, state merging, checkpoints, traces, and routing into a cleaner systems layer for multi-agent execution.
 
-Most earlier agent frameworks were built around prompts, model calls, and tool loops. AgentWorld is built around a different assumption: the worker below the framework is already a capable agent with tools, sessions, filesystem access, and long-running behavior.
+## Overview
 
-That shifts the hard problems:
+### Highlights
 
-- provider-specific control should live in a controller
-- graph nodes should invoke operators, not raw model calls
-- agent-to-agent traffic should be explicit and typed
-- runtime state should be mergeable, replayable, and resumable
-- checkpoints and traces should be core infrastructure, not afterthoughts
-
-## What Exists Today
-
-| Component | Status |
+| Capability | Current State |
 | --- | --- |
-| `AgentGraph` builder and compiled runtime | Implemented |
+| Strong-agent-first graph runtime | Implemented |
 | Reducer-based shared state merging | Implemented |
-| A2A envelopes and artifact models | Implemented |
+| Typed A2A envelopes and artifact flow | Implemented |
 | `DefaultOperator` execution path | Implemented |
-| `ClaudeCodeController` | Implemented and smoke-tested against the real CLI |
-| `CodexController` | Contract scaffolded, implementation pending |
-| `OpenClawController` | Contract scaffolded, implementation pending |
+| Real `ClaudeCodeController` integration | Implemented and smoke-tested |
+| `CodexController` contract | Scaffolded |
+| `OpenClawController` contract | Scaffolded |
 | CI on Python 3.11 / 3.12 | Active |
 
-## Core Model
+### Why AgentWorld
+
+Most older agent frameworks were designed around prompt loops, tool loops, and model calls.
+
+AgentWorld starts from a different assumption: the execution worker is already a capable agent with:
+
+- tools
+- sessions
+- filesystem access
+- long-running behavior
+- provider-specific execution rules
+
+That changes the core design problem:
+
+- provider complexity should stop at the controller boundary
+- graph nodes should invoke operators, not raw model calls
+- agent-to-agent traffic should be explicit and typed
+- runtime state should be mergeable and replayable
+- checkpoint, resume, interrupt, and trace should be built in
+
+## Architecture
 
 ```mermaid
 flowchart TB
@@ -44,10 +60,10 @@ flowchart TB
     G["Compiled Graph"]
     R["Runtime"]
 
-    subgraph AW["AgentWorld"]
+    subgraph AW["AgentWorld Core"]
         O["Operator Layer"]
         P["A2A Protocol"]
-        S["Shared State + Checkpoints + Trace"]
+        S["State + Checkpoint + Trace"]
     end
 
     subgraph C["Controllers"]
@@ -71,51 +87,75 @@ flowchart TB
     O --> C3 --> A3
 ```
 
+### Execution Model
+
+1. Build a graph of operator-backed nodes
+2. Compile the graph into a runtime
+3. Assemble a normalized operator request
+4. Let a controller drive the real agent
+5. Convert events into messages, artifacts, and state patches
+6. Merge state, route the next nodes, and persist checkpoints
+
+### Core Boundaries
+
+| Boundary | Responsibility |
+| --- | --- |
+| Controller | Provider-specific invocation, sessions, event parsing, tool policy mapping |
+| Operator | Uniform request/result contract, context assembly, normalized outputs |
+| A2A Protocol | Messages, handoffs, tool outputs, artifact references |
+| Runtime | Scheduling, state merge, checkpoint, resume, interrupt, trace |
+
 ## Quick Start
 
-Install the package in editable mode:
+### 1. Install
 
 ```bash
 python -m pip install -e .
 ```
 
-Run the test suite:
+### 2. Run tests
 
 ```bash
 python -m unittest discover -s tests -v
 ```
 
-Run the in-memory planner / coder / reviewer example:
+### 3. Run the in-memory graph example
 
 ```bash
 python examples/planner_coder_reviewer.py
 ```
 
-Run the real Claude Code smoke case:
+### 4. Run the real Claude Code smoke case
 
 ```bash
 python examples/claude_real_smoke.py
 ```
 
-The Claude smoke case expects a working `claude` CLI installation and an authenticated local environment.
+The Claude smoke case requires a working local `claude` CLI and an authenticated environment.
 
-## Architecture Themes
+## Examples
 
-### 1. Controllers absorb provider complexity
+### Planner -> Coder -> Reviewer
 
-Session lifecycle, permission mapping, event parsing, working directory binding, and provider-specific execution should stop at the controller boundary.
+[examples/planner_coder_reviewer.py](examples/planner_coder_reviewer.py)
 
-### 2. Operators define one execution contract
+An in-memory example that validates:
 
-The graph should schedule a uniform operator request and receive a uniform operator result, regardless of which strong agent is underneath.
+- sequential graph execution
+- reducer-based state merging
+- artifact creation
+- message propagation across nodes
 
-### 3. A2A is separate from shared state
+### Real Claude Code Graph
 
-Messages, handoffs, tool outputs, and artifacts belong to the protocol layer. Reducer-friendly workflow state belongs to the runtime.
+[examples/claude_real_smoke.py](examples/claude_real_smoke.py)
 
-### 4. Runtime semantics matter
+A real controller-backed flow that validates:
 
-Long-running agents make checkpoint, resume, interrupt, retry, and trace first-class concerns.
+- `ClaudeCodeController` command assembly
+- real event parsing from Claude Code
+- `tool_call` and `tool_result` normalization
+- graph handoff from planner to reviewer
 
 ## Repository Layout
 
@@ -136,27 +176,54 @@ Long-running agents make checkpoint, resume, interrupt, retry, and trace first-c
 └── tests/
 ```
 
-## Design and Docs
+## Documentation
 
+- Project site: [black-yt.github.io/AgentWorld](https://black-yt.github.io/AgentWorld/)
 - Detailed architecture note: [docs/architecture.md](docs/architecture.md)
-- GitHub Pages site source: [docs/index.html](docs/index.html)
-- Real graph examples: [examples/planner_coder_reviewer.py](examples/planner_coder_reviewer.py) and [examples/claude_real_smoke.py](examples/claude_real_smoke.py)
+- GitHub Pages source: [docs/index.html](docs/index.html)
 
-## Development Conventions
+## Current Status
 
-- Public project files stay in English
-- Private notes, meeting logs, scratch files, artifacts, and local working material are ignored by Git
-- Provider-specific code should stay inside controllers
-- Graph semantics should stay provider-agnostic
+### Implemented
 
-## Near-Term Roadmap
+- graph builder and compiled runtime
+- operator models and normalized execution flow
+- A2A envelope and artifact primitives
+- reducer-based shared state merging
+- real Claude Code controller path
+- CI with unit tests
 
-- finish the Codex controller
-- finish the OpenClaw controller
-- harden checkpoint and resume behavior
-- extend graph commands for richer routing and handoff control
-- add more end-to-end real-agent examples
+### In Progress
+
+- richer graph commands
+- better checkpoint and resume semantics
+- stronger runtime trace and artifact indexing
+
+### Planned
+
+- Codex runtime controller
+- OpenClaw runtime controller
+- more real-agent end-to-end examples
+- more explicit human-in-the-loop interruption points
+
+## Roadmap
+
+- finish provider-specific controllers beyond Claude Code
+- harden resumability and failure recovery
+- extend graph routing and handoff semantics
+- improve trace persistence and debugging surfaces
+- add more production-like examples and docs
+
+## Contributing
+
+This repository is still early-stage, but the public surface is now stable enough for contribution around:
+
+- controller implementations
+- runtime behavior
+- graph semantics
+- tests and examples
+- documentation improvements
 
 ## Summary
 
-AgentWorld is an early-stage but real implementation of a strong-agent orchestration runtime. It already has a working graph layer, normalized operator flow, A2A primitives, CI, and a real Claude Code integration path. The next step is to turn that base into a cleaner, more durable execution layer for multi-agent systems.
+AgentWorld is building a runtime layer for the era after simple LLM wrappers. The project already has a real graph core, normalized operator flow, CI, and a working Claude Code integration path. The next step is to make that foundation durable enough for serious multi-agent execution.
