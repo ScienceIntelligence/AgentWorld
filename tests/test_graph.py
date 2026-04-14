@@ -225,6 +225,35 @@ class AgentGraphTests(unittest.TestCase):
         self.assertEqual(result.error, "controller failed on purpose")
         self.assertNotIn("should_not_run", result.state)
 
+    def test_node_skills_are_exposed_to_operator_request(self) -> None:
+        def planner(request):
+            payload = json.loads(request.instruction)
+            return [
+                ControllerEvent(
+                    kind="completed",
+                    payload={
+                        "state_patch": {
+                            "skills_seen": payload["skills"],
+                            "skill_count": len(payload["skills"]),
+                        }
+                    },
+                )
+            ]
+
+        graph = AgentGraph(name="skills")
+        graph.add_operator("planner_op", DefaultOperator("planner_op", controller_from_script(planner)))
+        graph.add_node(
+            "plan",
+            operator="planner_op",
+            skills=["research-paper-search", "citation-audit"],
+        )
+
+        result = graph.compile().invoke({})
+
+        self.assertEqual(result.status, "success")
+        self.assertEqual(result.state["skills_seen"], ["research-paper-search", "citation-audit"])
+        self.assertEqual(result.state["skill_count"], 2)
+
 
 if __name__ == "__main__":
     unittest.main()

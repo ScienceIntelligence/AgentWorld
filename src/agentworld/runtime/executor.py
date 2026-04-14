@@ -77,6 +77,10 @@ class GraphExecutor:
                 )
             else:
                 tool_policy = ToolPolicy()
+            node_skills = [str(skill) for skill in node.skills]
+            legacy_skills = node.metadata.get("skills")
+            if not node_skills and isinstance(legacy_skills, list):
+                node_skills = [str(skill) for skill in legacy_skills]
             request = OperatorRequest(
                 operator_id=node.operator_id or node_name,
                 role=node.role or node_name,
@@ -84,6 +88,7 @@ class GraphExecutor:
                 state_view=state_view,
                 inbox=list(inboxes.pop(node_name, [])),
                 artifacts=list(artifacts),
+                skills=node_skills,
                 working_dir=cwd,
                 tool_policy=tool_policy,
                 metadata={"graph_id": self.graph.graph_id, "node_name": node_name},

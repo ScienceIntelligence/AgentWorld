@@ -29,12 +29,16 @@ def planner_script(_request):
 
 
 def coder_script(request):
+    payload = json.loads(request.instruction)
     return [
         ControllerEvent(
             kind="message_completed",
             payload={
                 "kind": "observation",
-                "text": f"Coder received {len(request.metadata)} metadata keys and produced a draft.",
+                "text": (
+                    f"Coder received {len(payload['skills'])} skills "
+                    f"and {len(request.metadata)} metadata keys and produced a draft."
+                ),
             },
         ),
         ControllerEvent(
@@ -84,9 +88,24 @@ def main() -> None:
     graph.add_operator("coder_op", DefaultOperator("coder_op", StaticController(coder_script), role="coder"))
     graph.add_operator("reviewer_op", DefaultOperator("reviewer_op", StaticController(reviewer_script), role="reviewer"))
 
-    graph.add_node("plan", operator="planner_op", objective="Plan the work")
-    graph.add_node("implement", operator="coder_op", objective="Implement the work")
-    graph.add_node("review", operator="reviewer_op", objective="Review the work")
+    graph.add_node(
+        "plan",
+        operator="planner_op",
+        objective="Plan the work",
+        skills=["research-paper-search", "literature-synthesis"],
+    )
+    graph.add_node(
+        "implement",
+        operator="coder_op",
+        objective="Implement the work",
+        skills=["experiment-planning", "dataset-triage"],
+    )
+    graph.add_node(
+        "review",
+        operator="reviewer_op",
+        objective="Review the work",
+        skills=["citation-audit", "result-audit"],
+    )
     graph.add_edge("plan", "implement")
     graph.add_edge("implement", "review")
 

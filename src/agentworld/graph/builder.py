@@ -55,10 +55,13 @@ class AgentGraph:
         objective: str | None = None,
         role: str | None = None,
         input_selector: StateSelector | None = None,
+        skills: Sequence[str] | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> "AgentGraph":
         if name in self.nodes:
             raise ValueError(f"Node already exists: {name}")
+        resolved_metadata = dict(metadata or {})
+        resolved_skills = [str(skill) for skill in (skills or resolved_metadata.pop("skills", []))]
         self.nodes[name] = GraphNode(
             name=name,
             kind=kind,
@@ -67,7 +70,8 @@ class AgentGraph:
             objective=objective,
             role=role,
             input_selector=input_selector,
-            metadata=dict(metadata or {}),
+            skills=resolved_skills,
+            metadata=resolved_metadata,
         )
         return self
 

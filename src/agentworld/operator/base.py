@@ -51,7 +51,11 @@ class DefaultOperator:
             instruction=self._build_instruction(request),
             tool_policy=request.tool_policy.to_dict(),
             timeout_s=request.timeout_s,
-            metadata={"graph_id": runtime.graph_id, "node_name": runtime.node_name},
+            metadata={
+                "graph_id": runtime.graph_id,
+                "node_name": runtime.node_name,
+                "skills": list(request.skills),
+            },
         )
         handle = self.controller.start(start_request)
         return self._collect_result(request, runtime, handle)
@@ -63,7 +67,11 @@ class DefaultOperator:
             instruction=self._build_instruction(request),
             tool_policy=request.tool_policy.to_dict(),
             timeout_s=request.timeout_s,
-            metadata={"graph_id": runtime.graph_id, "node_name": runtime.node_name},
+            metadata={
+                "graph_id": runtime.graph_id,
+                "node_name": runtime.node_name,
+                "skills": list(request.skills),
+            },
         )
         handle = self.controller.resume(resume_request)
         return self._collect_result(request, runtime, handle)
@@ -75,6 +83,7 @@ class DefaultOperator:
             "state_view": request.state_view,
             "inbox": [message.to_dict() for message in request.inbox],
             "artifacts": [artifact.to_dict() for artifact in request.artifacts],
+            "skills": list(request.skills),
             "metadata": request.metadata,
         }
         rendered = json.dumps(payload, indent=2, ensure_ascii=True, default=str)

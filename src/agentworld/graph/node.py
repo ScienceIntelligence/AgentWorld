@@ -15,4 +15,5 @@ class GraphNode:
     objective: str | None = None
     role: str | None = None
     input_selector: StateSelector | None = None
+    skills: list[str] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)

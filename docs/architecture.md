@@ -241,6 +241,7 @@ class Operator(Protocol):
 | `state_view` | the state slice visible to this node |
 | `inbox` | incoming A2A messages |
 | `artifacts` | visible artifacts |
+| `skills` | skill names loaded for this operator execution |
 | `working_dir` | working directory |
 | `session_policy` | whether to create a new session, reuse one, or force resume |
 | `tool_policy` | allowed tools and permission level |

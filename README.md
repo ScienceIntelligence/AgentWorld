@@ -1,57 +1,116 @@
-# AgentWorld
+<a id="top"></a>
 
-[![Website](https://img.shields.io/badge/Website-AgentWorld-0f8b7b)](https://black-yt.github.io/AgentWorld/)
+<div align="center">
+  <h1>AgentWorld</h1>
+</div>
+
+<div align="center">
+
+[![Official Site](https://img.shields.io/badge/Official%20Site-0f8b7b.svg?logo=homepage)](https://black-yt.github.io/AgentWorld/)
+[![GitHub](https://img.shields.io/badge/GitHub-000000?logo=github&logoColor=white)](https://github.com/black-yt/AgentWorld)
 [![CI](https://github.com/black-yt/AgentWorld/actions/workflows/ci.yml/badge.svg)](https://github.com/black-yt/AgentWorld/actions/workflows/ci.yml)
-[![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-1f6feb)](https://www.python.org/)
-[![Stage](https://img.shields.io/badge/Stage-Early%20Runtime-e45f3c)](https://github.com/black-yt/AgentWorld)
+[![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-blue.svg)](https://www.python.org/)
+[![Skills](https://img.shields.io/badge/Skills-5-green.svg)](#-skill-marketplace)
+[![Operators](https://img.shields.io/badge/Operators-3-orange.svg)](#-supported-operators)
+[![GitHub stars](https://img.shields.io/github/stars/black-yt/AgentWorld?style=social)](https://github.com/black-yt/AgentWorld)
 
-**Graph-native orchestration for strong agents.**  
-[Quick Start](#-quick-start) | [Why AgentWorld](#-why-agentworld) | [Architecture](#-architecture) | [Examples](#-examples) | [Roadmap](#-roadmap) | [Design Doc](docs/architecture.md)
+**Orchestrating strong agents from controller-level execution to graph-level collaboration**
 
-<p>
-  <img src="docs/assets/agentworld-hero.jpg" alt="AgentWorld hero image" />
+[Quick Start](#-quick-start) | [Skill Marketplace](#-skill-marketplace) | [How It Works](#%EF%B8%8F-how-it-works) | [Supported Operators](#-supported-operators) | [Examples](#-examples) | [Roadmap](#-roadmap)
+
+</div>
+
+<p align="center">
+  <img src="docs/assets/agentworld-hero.jpg" alt="AgentWorld Overview" width="700">
 </p>
 
-AgentWorld is a runtime for coordinating strong agents such as Claude Code, Codex, and future operator-style systems inside one programmable graph.
+---
 
-Instead of wrapping another LLM SDK, AgentWorld separates provider control, operator execution, agent-to-agent messaging, state merging, checkpoints, traces, and routing into a cleaner systems layer for multi-agent execution.
+AgentWorld is a graph runtime for multi-agent systems where the execution primitive is a **strong agent** such as Claude Code, Codex, or OpenClaw, rather than a single model call.
+
+Instead of wrapping another LLM SDK, AgentWorld separates:
+
+- provider-specific control into **controllers**
+- upper-layer execution into **operators**
+- inter-agent communication into an explicit **A2A protocol**
+- scheduling, checkpointing, and replay into a **graph runtime**
+- reusable domain expertise into a **skill marketplace**
 
 ## Overview
 
-### Highlights
+### ✨ Highlights
 
-| Capability | Current State |
-| --- | --- |
-| Strong-agent-first graph runtime | Implemented |
-| Reducer-based shared state merging | Implemented |
-| Typed A2A envelopes and artifact flow | Implemented |
-| `DefaultOperator` execution path | Implemented |
-| Real `ClaudeCodeController` integration | Implemented and smoke-tested |
-| `CodexController` contract | Scaffolded |
-| `OpenClawController` contract | Scaffolded |
-| CI on Python 3.11 / 3.12 | Active |
+<table>
+<tr>
+<td align="center" width="25%">🧠<br/><b>Strong-Agent Runtime</b><br/><sub>Designed for Claude Code, Codex, OpenClaw, and other long-running operator-style agents</sub></td>
+<td align="center" width="25%">🕸️<br/><b>Graph-Native Execution</b><br/><sub>Nodes schedule operators, merge shared state, route handoffs, and coordinate recovery</sub></td>
+<td align="center" width="25%">🧩<br/><b>Per-Node Skills</b><br/><sub>Each operator node can load different skills for paper search, synthesis, experiment planning, and review</sub></td>
+<td align="center" width="25%">📦<br/><b>Recoverable Runs</b><br/><sub>Built around checkpoints, traceability, artifacts, and resumable execution semantics</sub></td>
+</tr>
+<tr>
+<td align="center">🔌<br/><b>Controller Boundary</b><br/><sub>Provider-specific session lifecycle, tool policy, and stream parsing stay isolated</sub></td>
+<td align="center">📨<br/><b>Explicit A2A</b><br/><sub>Messages, tool results, handoffs, and artifacts are structured instead of prompt glue</sub></td>
+<td align="center">🧪<br/><b>Real Smoke Path</b><br/><sub>Claude Code already runs through the runtime in a real graph-backed case</sub></td>
+<td align="center">⚙️<br/><b>Lightweight Core</b><br/><sub>Pure Python package with CI, tests, and no heavy orchestration framework dependency</sub></td>
+</tr>
+</table>
 
-### Why AgentWorld
+### 💡 Why AgentWorld
 
-Most older agent frameworks were designed around prompt loops, tool loops, and model calls.
+Most older agent frameworks evaluate what a model can call.
 
-AgentWorld starts from a different assumption: the execution worker is already a capable agent with:
+AgentWorld is built around what a strong agent can **run**:
 
-- tools
-- sessions
-- filesystem access
-- long-running behavior
-- provider-specific execution rules
+- a real session
+- a working directory
+- a permission model
+- tool calls with side effects
+- long-running stateful execution
+- collaboration with other agents in the same graph
 
-That changes the core design problem:
+That changes the architecture:
 
-- provider complexity should stop at the controller boundary
-- graph nodes should invoke operators, not raw model calls
-- agent-to-agent traffic should be explicit and typed
-- runtime state should be mergeable and replayable
-- checkpoint, resume, interrupt, and trace should be built in
+- a node is not just a prompt or function
+- a controller is not optional glue, it is the provider boundary
+- a skill is not a marketing label, it is reusable execution guidance attached to an operator
+- a runtime must own checkpoint, resume, interrupt, trace, and artifact flow
 
-## Architecture
+### 🆕 News
+
+- **2026-04-13** Added a dedicated `skills/` marketplace with research-oriented skills for paper search, literature synthesis, citation audit, experiment planning, and result audit.
+- **2026-04-13** Added explicit per-node `skills` support so each operator node can receive a different skill set through the runtime.
+- **2026-04-13** Published the GitHub Pages site under `docs/` and split the long architecture note into a dedicated design document.
+- **2026-04-13** Refined the public repository surface so README and site stay English-first while private notes remain local and ignored.
+
+## 🚀 Quick Start
+
+Install the package:
+
+```bash
+python -m pip install -e .
+```
+
+Run the test suite:
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+Run the in-memory planner / coder / reviewer graph:
+
+```bash
+python examples/planner_coder_reviewer.py
+```
+
+Run the real Claude Code smoke graph:
+
+```bash
+python examples/claude_real_smoke.py
+```
+
+The Claude smoke case requires a working local `claude` CLI and an authenticated environment.
+
+## ⚙️ How It Works
 
 ```mermaid
 flowchart TB
@@ -62,6 +121,7 @@ flowchart TB
 
     subgraph AW["AgentWorld Core"]
         O["Operator Layer"]
+        K["Skill Loader"]
         P["A2A Protocol"]
         S["State + Checkpoint + Trace"]
     end
@@ -80,6 +140,7 @@ flowchart TB
 
     U --> B --> G --> R
     R --> O
+    O --> K
     O --> P
     R --> S
     O --> C1 --> A1
@@ -87,77 +148,136 @@ flowchart TB
     O --> C3 --> A3
 ```
 
-### Execution Model
+### Core Execution Flow
 
 1. Build a graph of operator-backed nodes
-2. Compile the graph into a runtime
-3. Assemble a normalized operator request
-4. Let a controller drive the real agent
-5. Convert events into messages, artifacts, and state patches
-6. Merge state, route the next nodes, and persist checkpoints
+2. Assign objective, role, tool policy, and skills to each node
+3. Compile the graph into a runtime
+4. Let the runtime assemble a normalized operator request
+5. Let the controller drive the real strong agent
+6. Convert events into messages, artifacts, handoffs, and state patches
+7. Merge state, route the next nodes, and persist traceable execution state
 
 ### Core Boundaries
 
 | Boundary | Responsibility |
 | --- | --- |
-| Controller | Provider-specific invocation, sessions, event parsing, tool policy mapping |
-| Operator | Uniform request/result contract, context assembly, normalized outputs |
-| A2A Protocol | Messages, handoffs, tool outputs, artifact references |
-| Runtime | Scheduling, state merge, checkpoint, resume, interrupt, trace |
+| Controller | provider-specific invocation, sessions, stream parsing, tool policy mapping |
+| Operator | uniform request/result contract, prompt assembly, skill loading, normalized outputs |
+| Skill | reusable domain guidance, references, scripts, and task-specific workflow instructions |
+| A2A Protocol | messages, tool outputs, handoffs, artifact references |
+| Runtime | scheduling, state merge, checkpoint, resume, interrupt, trace |
 
-## Quick Start
+## 🧩 Skill Marketplace
 
-### 1. Install
+AgentWorld treats skills as reusable execution modules that can be attached to individual operator nodes.
 
-```bash
-python -m pip install -e .
+A skill is stored as a folder, usually with:
+
+- `SKILL.md` for instructions and activation guidance
+- optional `references/` for domain notes
+- optional `scripts/` for repeatable local tooling
+- optional `assets/` for templates or helper files
+
+### Included Research Skills
+
+| Skill | Purpose |
+| --- | --- |
+| `research-paper-search` | find papers, databases, identifiers, and evidence trails before execution |
+| `literature-synthesis` | turn a paper set into claims, themes, contradictions, and gaps |
+| `citation-audit` | validate references, metadata, citation hygiene, and bibliography consistency |
+| `experiment-planning` | design executable research plans, deliverables, risks, and validation steps |
+| `result-audit` | review outputs for unsupported claims, missing evidence, weak baselines, and incomplete analysis |
+
+### Load Different Skills Per Operator
+
+```python
+from agentworld import AgentGraph, DefaultOperator
+
+graph = AgentGraph(name="research-flow")
+graph.add_operator("planner", planner_operator)
+graph.add_operator("reviewer", reviewer_operator)
+
+graph.add_node(
+    "plan",
+    operator="planner",
+    objective="Search relevant work and plan the study",
+    skills=["research-paper-search", "literature-synthesis", "experiment-planning"],
+)
+
+graph.add_node(
+    "review",
+    operator="reviewer",
+    objective="Audit claims and evidence",
+    skills=["citation-audit", "result-audit"],
+)
 ```
 
-### 2. Run tests
+The runtime injects the selected skill list into the operator request, so different nodes can run with different domain guidance even when they use the same underlying controller.
 
-```bash
-python -m unittest discover -s tests -v
+### Add Your Own Skill
+
+Create a new folder under `skills/`:
+
+```text
+skills/
+└── my-skill/
+    └── SKILL.md
 ```
 
-### 3. Run the in-memory graph example
+Minimal `SKILL.md` format:
 
-```bash
-python examples/planner_coder_reviewer.py
+```md
+---
+name: my-skill
+description: What this skill should be used for.
+---
+
+# My Skill
+
+## When to Use This Skill
+- ...
+
+## Workflow
+- ...
 ```
 
-### 4. Run the real Claude Code smoke case
+## 🤖 Supported Operators
 
-```bash
-python examples/claude_real_smoke.py
-```
+AgentWorld is designed to schedule strong agents through provider-specific controllers:
 
-The Claude smoke case requires a working local `claude` CLI and an authenticated environment.
+| Operator | Current State | Notes |
+| --- | --- | --- |
+| **Claude Code** | Implemented | Real CLI-backed controller with stream parsing and smoke coverage |
+| **Codex** | Scaffolded | Contract is present, runtime path still needs full implementation |
+| **OpenClaw** | Scaffolded | Contract is present, controller behavior still needs full implementation |
 
-## Examples
+## 🧪 Examples
 
 ### Planner -> Coder -> Reviewer
 
 [examples/planner_coder_reviewer.py](examples/planner_coder_reviewer.py)
 
-An in-memory example that validates:
+Validates:
 
 - sequential graph execution
 - reducer-based state merging
 - artifact creation
-- message propagation across nodes
+- message propagation
+- per-node skill injection
 
 ### Real Claude Code Graph
 
 [examples/claude_real_smoke.py](examples/claude_real_smoke.py)
 
-A real controller-backed flow that validates:
+Validates:
 
-- `ClaudeCodeController` command assembly
+- real `ClaudeCodeController` command assembly
 - real event parsing from Claude Code
 - `tool_call` and `tool_result` normalization
-- graph handoff from planner to reviewer
+- planner-to-reviewer graph handoff
 
-## Repository Layout
+## 📁 Repository Structure
 
 ```text
 .
@@ -167,6 +287,13 @@ A real controller-backed flow that validates:
 │   ├── architecture.md
 │   └── assets/
 ├── examples/
+├── skills/
+│   ├── README.md
+│   ├── research-paper-search/
+│   ├── literature-synthesis/
+│   ├── citation-audit/
+│   ├── experiment-planning/
+│   └── result-audit/
 ├── src/agentworld/
 │   ├── controller/
 │   ├── graph/
@@ -176,54 +303,48 @@ A real controller-backed flow that validates:
 └── tests/
 ```
 
-## Documentation
+## 📚 Documentation
 
-- Project site: [black-yt.github.io/AgentWorld](https://black-yt.github.io/AgentWorld/)
-- Detailed architecture note: [docs/architecture.md](docs/architecture.md)
-- GitHub Pages source: [docs/index.html](docs/index.html)
+- Official site: [black-yt.github.io/AgentWorld](https://black-yt.github.io/AgentWorld/)
+- Architecture note: [docs/architecture.md](docs/architecture.md)
+- Skill marketplace: [skills/README.md](skills/README.md)
 
-## Current Status
+## 🗺️ Roadmap
 
-### Implemented
-
-- graph builder and compiled runtime
-- operator models and normalized execution flow
-- A2A envelope and artifact primitives
-- reducer-based shared state merging
-- real Claude Code controller path
-- CI with unit tests
-
-### In Progress
-
-- richer graph commands
-- better checkpoint and resume semantics
-- stronger runtime trace and artifact indexing
-
-### Planned
-
-- Codex runtime controller
-- OpenClaw runtime controller
-- more real-agent end-to-end examples
-- more explicit human-in-the-loop interruption points
-
-## Roadmap
-
-- finish provider-specific controllers beyond Claude Code
-- harden resumability and failure recovery
+- complete the Codex controller
+- complete the OpenClaw controller
+- harden checkpoint, resume, and trace persistence
 - extend graph routing and handoff semantics
-- improve trace persistence and debugging surfaces
-- add more production-like examples and docs
+- grow the skill marketplace with stronger scientific and engineering skills
+- add more real-agent end-to-end examples
 
-## Contributing
+---
 
-This repository is still early-stage, but the public surface is now stable enough for contribution around:
+## Community
+
+### 🤝 Contributing
+
+Contributions are especially useful around:
 
 - controller implementations
 - runtime behavior
 - graph semantics
+- skill design
 - tests and examples
 - documentation improvements
 
-## Summary
+### 📬 Contact
 
-AgentWorld is building a runtime layer for the era after simple LLM wrappers. The project already has a real graph core, normalized operator flow, CI, and a working Claude Code integration path. The next step is to make that foundation durable enough for serious multi-agent execution.
+Open an issue for bugs, design questions, controller support requests, or skill contributions.
+
+### ⭐ Star History
+
+<a href="https://www.star-history.com/#black-yt/AgentWorld&Date">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=black-yt/AgentWorld&type=Date&theme=dark" />
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=black-yt/AgentWorld&type=Date" />
+    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=black-yt/AgentWorld&type=Date" />
+  </picture>
+</a>
+
+<p align="right"><a href="#top">🔝 Back to top</a></p>

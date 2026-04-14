@@ -59,6 +59,7 @@ class OperatorRequest:
     state_view: Mapping[str, Any] = field(default_factory=dict)
     inbox: list[A2AEnvelope] = field(default_factory=list)
     artifacts: list[Artifact] = field(default_factory=list)
+    skills: list[str] = field(default_factory=list)
     working_dir: Path | None = None
     session_policy: SessionPolicy = "new"
     tool_policy: ToolPolicy = field(default_factory=ToolPolicy)
