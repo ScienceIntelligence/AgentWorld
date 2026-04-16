@@ -6,13 +6,13 @@
 
 <div align="center">
 
-[![Official Site](https://img.shields.io/badge/Official%20Site-0f8b7b.svg?logo=homepage)](https://black-yt.github.io/AgentWorld/)
-[![GitHub](https://img.shields.io/badge/GitHub-000000?logo=github&logoColor=white)](https://github.com/black-yt/AgentWorld)
-[![CI](https://github.com/black-yt/AgentWorld/actions/workflows/ci.yml/badge.svg)](https://github.com/black-yt/AgentWorld/actions/workflows/ci.yml)
+[![Official Site](https://img.shields.io/badge/Official%20Site-0f8b7b.svg?logo=homepage)](https://openscientists.github.io/AgentWorld/)
+[![GitHub](https://img.shields.io/badge/GitHub-000000?logo=github&logoColor=white)](https://github.com/OpenScientists/AgentWorld)
+[![CI](https://github.com/OpenScientists/AgentWorld/actions/workflows/ci.yml/badge.svg)](https://github.com/OpenScientists/AgentWorld/actions/workflows/ci.yml)
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-blue.svg)](https://www.python.org/)
 [![Skills](https://img.shields.io/badge/Skills-5-green.svg)](#-skill-marketplace)
 [![Operators](https://img.shields.io/badge/Operators-3-orange.svg)](#-supported-operators)
-[![GitHub stars](https://img.shields.io/github/stars/black-yt/AgentWorld?style=social)](https://github.com/black-yt/AgentWorld)
+[![GitHub stars](https://img.shields.io/github/stars/OpenScientists/AgentWorld?style=social)](https://github.com/OpenScientists/AgentWorld)
 
 **Building the open ecosystem platform for strong agents**
 
@@ -338,7 +338,7 @@ Validates:
 
 ## 📚 Documentation
 
-- Official site: [black-yt.github.io/AgentWorld](https://black-yt.github.io/AgentWorld/)
+- Official site: [openscientists.github.io/AgentWorld](https://openscientists.github.io/AgentWorld/)
 - Architecture note: [docs/architecture.md](docs/architecture.md)
 - Skill marketplace: [skills/README.md](skills/README.md)
 
@@ -375,11 +375,11 @@ Open an issue for bugs, design questions, controller support requests, or skill 
 
 ### ⭐ Star History
 
-<a href="https://www.star-history.com/#black-yt/AgentWorld&Date">
+<a href="https://www.star-history.com/#OpenScientists/AgentWorld&Date">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=black-yt/AgentWorld&type=Date&theme=dark" />
-    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=black-yt/AgentWorld&type=Date" />
-    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=black-yt/AgentWorld&type=Date" />
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=OpenScientists/AgentWorld&type=Date&theme=dark" />
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=OpenScientists/AgentWorld&type=Date" />
+    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=OpenScientists/AgentWorld&type=Date" />
   </picture>
 </a>
 
