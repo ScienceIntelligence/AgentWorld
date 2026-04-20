@@ -52,6 +52,11 @@ docs/
 └── organization-layout.md
 
 src/agentworld/
+├── benchmarks/
+│   ├── __init__.py
+│   ├── catalog.py
+│   ├── records.py
+│   └── loaders.py
 ├── organization/
 │   ├── __init__.py
 │   ├── models.py
@@ -83,6 +88,11 @@ src/agentworld/
 │   ├── base.py
 │   ├── models.py
 │   └── filesystem.py
+├── workflows/
+│   ├── __init__.py
+│   ├── knowledge.py
+│   ├── reasoning.py
+│   └── agentic.py
 └── runtime/
     ├── __init__.py
     ├── executor.py
@@ -90,6 +100,8 @@ src/agentworld/
     └── organization.py
 
 tests/
+├── test_benchmark_catalog.py
+├── test_benchmark_entrypoints.py
 ├── test_organization_models.py
 ├── test_workspace_bootstrap.py
 ├── test_memory_store.py
@@ -97,16 +109,58 @@ tests/
 ├── test_recovery_store.py
 ├── test_policy_engine.py
 ├── test_operator_filesystem.py
-└── test_organization_runtime.py
+├── test_organization_runtime.py
+└── test_workflow_templates.py
 
 examples/
 ├── organization_lab.py
-└── organization_review_board.py
+├── organization_review_board.py
+└── benchmarks/
+    ├── run_sfe.py
+    ├── run_sgi_deepresearch.py
+    ├── run_researchclawbench.py
+    └── run_scicode.py
 ```
 
 The important constraint is simple: each work item below should mostly own one directory or one file group. That keeps the team parallel.
 
-## 4. Parallel TODO
+## 4. Benchmark Workflow Program
+
+These benchmarks are one of the main external targets for the framework.
+
+The goal is not to build one-off scripts for each dataset. The goal is to use one common runtime to instantiate reusable workflow families that can cover:
+
+- Stage 1 knowledge SFT tasks
+- Stage 2 reasoning RL tasks
+- Stage 3 agent tool-calling tasks
+
+### 4.1 Target Benchmark Matrix
+
+| Dataset | Training Stage | Priority | Discipline | Link | Task Type | Example Input | Example Output |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| SFE | 1: Knowledge SFT | core | Scientific image understanding, currently astronomy examples | https://huggingface.co/datasets/InternScience/SFE | Multimodal | `Image: stellar spectrum; estimate [alpha/M]` | `0.12627530097961426` |
+| Mol-Instructions | 1: Knowledge SFT | core | Chemistry, biology, molecules, and proteins | https://huggingface.co/datasets/zjunlp/Mol-Instructions | Text-only | `Please give me some details about this molecule: [C][C][C]...` | `The molecule is a 3-sn-phosphatidyl-L-serine ...` |
+| MSEarth_MCQ | 1: Knowledge SFT | optional | Earth science | https://huggingface.co/datasets/PrismaX/MSEarth_MCQ | Multimodal | `Image + caption + question: Which aquifer shows the highest spread of the Fe-Mn hazard?` | `C. Aquifer 3` |
+| SGI-DeepResearch | 2: Reasoning RL | core | Multidisciplinary scientific reasoning | https://huggingface.co/datasets/InternScience/SGI-DeepResearch | Text-only | `In GW150914's ridge points ... compute total mass M` | `62.0` |
+| SGI-Reasoning | 2: Reasoning RL | core | Multidisciplinary multimodal scientific reasoning | https://huggingface.co/datasets/InternScience/SGI-Reasoning | Multimodal | `Image + question: SERS distance changes from 8.5 to 2.3; compute the similarity change` | `1 (answer index)` |
+| TRQA | 2: Reasoning RL | core | Biomedicine and target discovery | https://huggingface.co/datasets/GENTEL-Lab/TRQA | Text-only | `Which cardiovascular complications are directly associated with FGF23 excess?` | `BCD` |
+| hle | 2: Reasoning RL | optional | Frontier multidisciplinary science | https://huggingface.co/datasets/cais/hle | Multimodal | `What is the largest prime divisor of 8139881` | `5003` |
+| Earth-Silver | 2: Reasoning RL | optional | Earth science and ecology | https://huggingface.co/datasets/ai-earth/Earth-Silver | Text-only | `How do varying fire regimes and browsing intensities influence vegetation dynamics ... ?` | `Varying fire regimes and browsing intensities serve as critical factors ...` |
+| SGI-IdeaGeneration | 2: Reasoning RL | core | Multidisciplinary scientific idea generation | https://huggingface.co/datasets/InternScience/SGI-IdeaGeneration | Text-only | `Based on related work and the challenge, generate a novel and detailed research proposal` | `AlphaFold introduces an end-to-end deep learning architecture ...` |
+| ResearchClawBench | 3: Agent Tool Calling | core | Multidisciplinary scientific research agent benchmark | GitHub: https://github.com/InternScience/ResearchClawBench<br>HF mirror: https://huggingface.co/datasets/InternScience/ResearchClawBench | Project-level | `Constrain ultralight bosons from black-hole posterior samples and produce a paper-level report` | `code + figures + report/report.md` |
+| SciCode | 3: Agent Tool Calling | core | Scientific computing and code generation | https://huggingface.co/datasets/SciCode1/SciCode | Project-level | `Write a script to integrate the Berendsen thermostat and barostat ...` | `Python implementation that passes provided tests` |
+
+### 4.2 Workflow Families We Need
+
+We should cover the benchmark set through three reusable workflow families rather than through eleven unrelated pipelines.
+
+**Knowledge workflows** should target Stage 1 datasets such as `SFE`, `Mol-Instructions`, and `MSEarth_MCQ`. These workflows should focus on structured prompting, skill selection, modality handling, and answer normalization for knowledge-heavy tasks.
+
+**Reasoning workflows** should target Stage 2 datasets such as `SGI-DeepResearch`, `SGI-Reasoning`, `TRQA`, `hle`, `Earth-Silver`, and `SGI-IdeaGeneration`. These workflows should support multi-step reasoning, optional tool use, evidence gathering, intermediate scratchpads, and final answer extraction.
+
+**Agentic project workflows** should target Stage 3 datasets such as `ResearchClawBench` and `SciCode`. These workflows should support project bootstrapping, filesystem-native memory, long-running execution, tool calling, code generation, artifact production, and final report assembly.
+
+## 5. Parallel TODO
 
 Tasks 1-6 are designed to run in parallel with minimal overlap. Tasks 7-8 are integration-facing and should start once the core file contracts are stable enough to import.
 
@@ -157,3 +211,21 @@ Build the adapter that turns an organization workspace into operator-ready execu
 **Files:** `src/agentworld/runtime/organization.py`, `src/agentworld/runtime/__init__.py`, `examples/organization_lab.py`, `examples/organization_review_board.py`, `tests/test_organization_runtime.py`
 
 Build the thinnest runtime that can execute work over the organization workspace. This task should connect graph execution, workspace bootstrap output, operator filesystem context, and recovery helpers into one runnable flow. The result should be at least two end-to-end examples: one lab-style organization and one review-board organization, both using the filesystem-native layout rather than an in-memory toy setup.
+
+### 9. Build the benchmark catalog and dataset contracts
+
+**Files:** `src/agentworld/benchmarks/__init__.py`, `src/agentworld/benchmarks/catalog.py`, `src/agentworld/benchmarks/records.py`, `src/agentworld/benchmarks/loaders.py`, `tests/test_benchmark_catalog.py`
+
+Build the benchmark registry for the target matrix above. This task should define a normalized record for every benchmark, including training stage, priority, modality, discipline, dataset link, expected answer shape, and example I/O contract. It should also provide lightweight dataset-loading hooks so workflows can consume benchmark items through one common interface instead of custom per-dataset glue.
+
+### 10. Build reusable workflow templates for benchmark families
+
+**Files:** `src/agentworld/workflows/__init__.py`, `src/agentworld/workflows/knowledge.py`, `src/agentworld/workflows/reasoning.py`, `src/agentworld/workflows/agentic.py`, `tests/test_workflow_templates.py`
+
+Build three reusable workflow families for the benchmark program: one for knowledge SFT tasks, one for reasoning RL tasks, and one for agent tool-calling tasks. Each workflow template should define the minimal operator graph, required skills, memory surfaces, artifact expectations, and answer-finalization logic for its benchmark family. The goal is to make new benchmark coverage a configuration exercise rather than a brand-new system design each time.
+
+### 11. Build benchmark entrypoints and reference runs
+
+**Files:** `examples/benchmarks/run_sfe.py`, `examples/benchmarks/run_sgi_deepresearch.py`, `examples/benchmarks/run_researchclawbench.py`, `examples/benchmarks/run_scicode.py`, `tests/test_benchmark_entrypoints.py`
+
+Build reference entrypoints that exercise the unified workflow stack on representative benchmarks from all three stages. These scripts should prove that the same platform can run a multimodal knowledge task, a scientific reasoning task, and a project-level agent benchmark without changing the underlying runtime model. The result should be a small but real benchmark-facing surface that the team can extend dataset by dataset.
